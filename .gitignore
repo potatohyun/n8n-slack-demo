@@ -1,0 +1,20 @@
+# Environment variables
+.env
+
+# Crawled data
+data/
+*.json
+
+# n8n data
+n8n_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
