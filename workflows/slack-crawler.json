@@ -3,70 +3,33 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "hours"
-            }
-          ]
-        }
+        "method": "POST",
+        "url": "http://192.168.219.108:8080/api/slack/data",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
       },
-      "id": "ac5aa672-5c38-40e5-a2ab-2d6ab05cc6ae",
-      "name": "Schedule Trigger",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.1,
+      "id": "efa0a4d7-b6e2-49b9-98bc-88f35400c735",
+      "name": "Send to Spring Boot API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        -160,
-        -208
+        928,
+        864
       ]
     },
     {
       "parameters": {
-        "resource": "channel",
-        "operation": "getAll",
-        "filters": {}
-      },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.4,
-      "position": [
-        80,
-        -80
-      ],
-      "id": "3c461b7e-dc6d-4bea-92ed-af552dc9a142",
-      "name": "Get many channels1",
-      "webhookId": "6982baf2-7401-49b1-acde-1c1a3bb57325",
-      "credentials": {
-        "slackApi": {
-          "id": "U99Bqq7yhLnUQigZ",
-          "name": "Slack account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const channels = $input.all();\n\nreturn channels\n  .filter(ch => ch.json.is_member === true)\n  .filter(ch => ch.json.is_archived !== true)\n  .map(ch => ({\n    json: {\n      channelId: ch.json.id,\n      name: ch.json.name,\n      isPrivate: ch.json.is_private || false,\n      created: ch.json.created,\n      numMembers: ch.json.num_members || 0\n    }\n  }));\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        304,
-        -96
-      ],
-      "id": "6f7c07e5-122b-4e27-bcdf-9be7962d90e4",
-      "name": "get channel list"
-    },
-    {
-      "parameters": {
-        "batchSize": 1,
         "options": {}
       },
-      "id": "split-in-batches-node-id",
-      "name": "Loop Over Channels",
+      "id": "4a6dfa44-6674-4401-b1f2-1bc0d9d2a7a8",
+      "name": "Loop Over Channels1",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
         480,
-        -96
+        1056
       ]
     },
     {
@@ -85,32 +48,32 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        656,
-        -96
+        704,
+        1056
       ],
-      "id": "355c5144-0734-4411-bb30-d016b1f0d250",
-      "name": "Get Channel History",
+      "id": "a0fbf6f1-d4d4-41ea-8980-d66fead530da",
+      "name": "Get Channel History1",
       "webhookId": "49f474e9-6cc6-47d7-b59d-128ddc9c865f",
       "alwaysOutputData": true,
       "credentials": {
         "slackApi": {
-          "id": "U99Bqq7yhLnUQigZ",
+          "id": "QKI1n6UPj9w1Iqxl",
           "name": "Slack account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// 현재 처리 중인 채널 정보 가져오기\nconst channel = $('Loop Over Channels').item.json;\n\n// 메시지 히스토리 가져오기\nconst messages = $input.all().map(item => ({\n  ts: item.json.ts,\n  user: item.json.user || null,\n  text: item.json.text || '',\n  subtype: item.json.subtype || null,\n  threadTs: item.json.thread_ts || null,\n  reactions: item.json.reactions || [],\n  files: item.json.files || []\n})).filter(msg => msg.subtype !== 'channel_join'); // system 메시지 제거\n\n// 채널 정보와 메시지를 하나의 객체로 결합\nreturn [{\n  json: {\n    channelId: channel.channelId,\n    channelName: channel.name,\n    isPrivate: channel.isPrivate,\n    created: channel.created,\n    numMembers: channel.numMembers,\n    messages: messages\n  }\n}];\n"
+        "jsCode": "// 현재 처리 중인 채널 정보 가져오기\nconst channel = $('Loop Over Channels1').item.json;\n\n// 메시지 히스토리 가져오기\nconst messages = $input.all().map(item => ({\n  ts: item.json.ts,\n  user: item.json.user || null,\n  text: item.json.text || '',\n  subtype: item.json.subtype || null,\n  threadTs: item.json.thread_ts || null,\n  reactions: item.json.reactions || [],\n  files: item.json.files || []\n})).filter(msg => msg.subtype !== 'channel_join'); // system 메시지 제거\n\n// 채널 정보와 메시지를 하나의 객체로 결합\nreturn [{\n  json: {\n    channelId: channel.channelId,\n    channelName: channel.name,\n    isPrivate: channel.isPrivate,\n    created: channel.created,\n    numMembers: channel.numMembers,\n    messages: messages\n  }\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        832,
-        -96
+        928,
+        1128
       ],
-      "id": "format-channel-data-id",
-      "name": "Format Channel Data"
+      "id": "ccdc5ace-84c3-4212-a50a-647654921c51",
+      "name": "Format Channel Data1"
     },
     {
       "parameters": {
@@ -119,15 +82,121 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1104,
-        -96
+        704,
+        864
       ],
-      "id": "final-merge-id",
-      "name": "Final Merge"
+      "id": "ace21f95-0f7e-4e4d-9d68-7eb8f479a99d",
+      "name": "Final Merge1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            },
+            {}
+          ]
+        }
+      },
+      "id": "a0df2e02-f821-4e88-8946-d93529900007",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -192,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "getAll",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        32,
+        1056
+      ],
+      "id": "b4d7667a-ffe3-4fd8-ad81-5fa3649d49bb",
+      "name": "Get many channels1",
+      "webhookId": "6982baf2-7401-49b1-acde-1c1a3bb57325",
+      "credentials": {
+        "slackApi": {
+          "id": "QKI1n6UPj9w1Iqxl",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const channels = $input.all();\n\nreturn channels\n  .filter(ch => ch.json.is_member === true)\n  .filter(ch => ch.json.is_archived !== true)\n  .map(ch => ({\n    json: {\n      channelId: ch.json.id,\n      name: ch.json.name,\n      isPrivate: ch.json.is_private || false,\n      created: ch.json.created,\n      numMembers: ch.json.num_members || 0\n    }\n  }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        1056
+      ],
+      "id": "4dc4057d-a7fd-4510-85cb-a72da27beff5",
+      "name": "get channel list"
     }
   ],
   "pinData": {},
   "connections": {
+    "Loop Over Channels1": {
+      "main": [
+        [
+          {
+            "node": "Final Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Channel History1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Channel History1": {
+      "main": [
+        [
+          {
+            "node": "Format Channel Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Channel Data1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Channels1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Merge1": {
+      "main": [
+        [
+          {
+            "node": "Send to Spring Boot API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Schedule Trigger": {
       "main": [
         [
@@ -154,47 +223,7 @@
       "main": [
         [
           {
-            "node": "Loop Over Channels",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Loop Over Channels": {
-      "main": [
-        [
-          {
-            "node": "Get Channel History",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Final Merge",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Channel History": {
-      "main": [
-        [
-          {
-            "node": "Format Channel Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Channel Data": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Channels",
+            "node": "Loop Over Channels1",
             "type": "main",
             "index": 0
           }
@@ -207,11 +236,11 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "121ccec6-5f18-4409-9b58-143e105dfbd0",
+  "versionId": "331d6cc6-f22b-43e6-9c6f-a950381f2291",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "ec4a355630b0eb90b27ad0b61e1b32a6e6fa2e14e548a145a58881190327ba74"
+    "instanceId": "00651a7bd2f9d1b7a31ea26d87844db45b9bab92b49f35e10bdb8303c8510ede"
   },
-  "id": "5sn96V9RXCgzOr2pBaGsy",
+  "id": "WDFoWitbIlPz9j68gLs2k",
   "tags": []
 }
