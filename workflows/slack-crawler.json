@@ -1,0 +1,185 @@
+{
+  "name": "Slack Crawler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "ac5aa672-5c38-40e5-a2ab-2d6ab05cc6ae",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "getAll",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        80,
+        -80
+      ],
+      "id": "3c461b7e-dc6d-4bea-92ed-af552dc9a142",
+      "name": "Get many channels1",
+      "webhookId": "6982baf2-7401-49b1-acde-1c1a3bb57325",
+      "credentials": {
+        "slackApi": {
+          "id": "U99Bqq7yhLnUQigZ",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "history",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channelId }}",
+          "mode": "id"
+        },
+        "filters": {
+          "inclusive": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        528,
+        -96
+      ],
+      "id": "355c5144-0734-4411-bb30-d016b1f0d250",
+      "name": "Get the history of a channel1",
+      "webhookId": "49f474e9-6cc6-47d7-b59d-128ddc9c865f",
+      "alwaysOutputData": false,
+      "credentials": {
+        "slackApi": {
+          "id": "U99Bqq7yhLnUQigZ",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const channels = $input.all();\n\nreturn channels\n  .filter(ch => ch.json.is_member === true)\n  .filter(ch => ch.json.is_archived !== true)\n  .map(ch => ({\n    json: {\n      channelId: ch.json.id,\n      name: ch.json.name,\n      isPrivate: ch.json.is_private || false,\n      created: ch.json.created,\n      numMembers: ch.json.num_members || 0\n    }\n  }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -96
+      ],
+      "id": "6f7c07e5-122b-4e27-bcdf-9be7962d90e4",
+      "name": "get channel list"
+    },
+    {
+      "parameters": {
+        "jsCode": "const channel = $input.first().json;\n\nreturn $input.all().map(item => ({\n  json: {\n    channelId: channel.channelId,\n    channelName: channel.name,\n    isPrivate: channel.isPrivate,\n    created: channel.created,\n    numMembers: channel.numMembers,\n\n    ts: item.json.ts,\n    user: item.json.user || null,\n    text: item.json.text || '',\n    subtype: item.json.subtype || null,\n    threadTs: item.json.thread_ts || null,\n    reactions: item.json.reactions || [],\n    files: item.json.files || []\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        64
+      ],
+      "id": "4f1ef5d2-7d31-4840-bd30-17e5ce161d30",
+      "name": "Attach Channel Info"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crawledAt = new Date().toISOString();\nconst items = $input.all();\n\nconst channelMap = {};\n\nfor (const item of items) {\n  const msg = item.json;\n  const channelId = msg.channelId;\n\n  // 채널 초기화\n  if (!channelMap[channelId]) {\n    channelMap[channelId] = {\n      channelId,\n      channelName: msg.channelName,\n      isPrivate: msg.isPrivate,\n      created: msg.created,\n      numMembers: msg.numMembers,\n      messages: []\n    };\n  }\n\n  // system 메시지 제거\n  if (msg.subtype === 'channel_join') continue;\n\n  // 메시지 추가\n  channelMap[channelId].messages.push({\n    ts: msg.ts,\n    user: msg.user,\n    text: msg.text,\n    threadTs: msg.threadTs,\n    reactions: msg.reactions,\n    files: msg.files\n  });\n}\n\n// 최종 결과\nconst result = {\n  crawledAt,\n  channels: Object.values(channelMap)\n};\n\nconst buffer = Buffer.from(JSON.stringify(result, null, 2), 'utf8');\n\nreturn [{\n  json: result,\n  binary: { data: buffer }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        64
+      ],
+      "id": "825a02dc-0401-419d-9657-d327146b4fb3",
+      "name": "Merge by Channel"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many channels1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many channels1": {
+      "main": [
+        [
+          {
+            "node": "get channel list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the history of a channel1": {
+      "main": [
+        [
+          {
+            "node": "Attach Channel Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get channel list": {
+      "main": [
+        [
+          {
+            "node": "Get the history of a channel1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Channel Info": {
+      "main": [
+        [
+          {
+            "node": "Merge by Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "121ccec6-5f18-4409-9b58-143e105dfbd0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ec4a355630b0eb90b27ad0b61e1b32a6e6fa2e14e548a145a58881190327ba74"
+  },
+  "id": "5sn96V9RXCgzOr2pBaGsy",
+  "tags": []
+}

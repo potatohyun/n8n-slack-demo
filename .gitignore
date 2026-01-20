@@ -3,7 +3,7 @@
 
 # Crawled data
 data/
-*.json
+# *.json
 
 # n8n data
 n8n_data/
