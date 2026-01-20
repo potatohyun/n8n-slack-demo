@@ -60,5 +60,73 @@ public class SlackDataService {
 
         return fileName;
     }
+
+    public String getLastTimestamp(String channelId) throws IOException {
+        Path timestampsFile = getTimestampsFilePath();
+        
+        if (!Files.exists(timestampsFile)) {
+            return null;
+        }
+        
+        try {
+            String content = Files.readString(timestampsFile);
+            if (content == null || content.trim().isEmpty()) {
+                return null;
+            }
+            java.util.Map<String, String> timestamps = objectMapper.readValue(content, 
+                objectMapper.getTypeFactory().constructMapType(java.util.Map.class, String.class, String.class));
+            return timestamps.get(channelId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public void saveLastTimestamp(String channelId, String timestamp) throws IOException {
+        Path timestampsFile = getTimestampsFilePath();
+        Path dataPath = timestampsFile.getParent();
+        
+        // 디렉토리 생성
+        if (!Files.exists(dataPath)) {
+            Files.createDirectories(dataPath);
+        }
+        
+        // 기존 데이터 읽기
+        java.util.Map<String, String> timestamps = new java.util.HashMap<>();
+        if (Files.exists(timestampsFile)) {
+            try {
+                String content = Files.readString(timestampsFile);
+                if (content != null && !content.trim().isEmpty()) {
+                    timestamps = objectMapper.readValue(content, 
+                        objectMapper.getTypeFactory().constructMapType(java.util.Map.class, String.class, String.class));
+                }
+            } catch (Exception e) {
+                // 파일이 손상된 경우 빈 맵으로 시작
+                timestamps = new java.util.HashMap<>();
+            }
+        }
+        
+        // timestamp 업데이트
+        timestamps.put(channelId, timestamp);
+        
+        // 파일에 저장
+        objectMapper.writerWithDefaultPrettyPrinter().writeValue(timestampsFile.toFile(), timestamps);
+    }
+
+    private Path getTimestampsFilePath() {
+        Path basePath = Paths.get(System.getProperty("user.dir"));
+        Path dataPath;
+        
+        if (savePath.startsWith("/")) {
+            dataPath = Paths.get(savePath);
+        } else {
+            if (basePath.getFileName().toString().equals("slack-data-api")) {
+                dataPath = basePath.getParent().resolve(savePath);
+            } else {
+                dataPath = basePath.resolve(savePath);
+            }
+        }
+        
+        return dataPath.resolve("slack-timestamps.json");
+    }
 }
 

@@ -42,7 +42,8 @@
           "mode": "id"
         },
         "filters": {
-          "inclusive": false
+          "inclusive": false,
+          "oldest": "={{ $json.lastTimestamp }}"
         }
       },
       "type": "n8n-nodes-base.slack",
@@ -64,7 +65,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 현재 처리 중인 채널 정보 가져오기\nconst channel = $('Loop Over Channels1').item.json;\n\n// 메시지 히스토리 가져오기\nconst messages = $input.all().map(item => ({\n  ts: item.json.ts,\n  user: item.json.user || null,\n  text: item.json.text || '',\n  subtype: item.json.subtype || null,\n  threadTs: item.json.thread_ts || null,\n  reactions: item.json.reactions || [],\n  files: item.json.files || []\n})).filter(msg => msg.subtype !== 'channel_join'); // system 메시지 제거\n\n// 채널 정보와 메시지를 하나의 객체로 결합\nreturn [{\n  json: {\n    channelId: channel.channelId,\n    channelName: channel.name,\n    isPrivate: channel.isPrivate,\n    created: channel.created,\n    numMembers: channel.numMembers,\n    messages: messages\n  }\n}];\n"
+        "jsCode": "// Parse Timestamp Response에서 채널 정보 가져오기 (lastTimestampTs 포함)\nconst channel = $('Parse Timestamp Response').item.json;\nconst previousLastTimestampTs = channel.lastTimestampTs; // Slack ts 형식\n\n// 메시지 히스토리 가져오기\nlet messages = $input.all().map(item => ({\n  ts: item.json.ts,\n  user: item.json.user || null,\n  text: item.json.text || '',\n  subtype: item.json.subtype || null,\n  threadTs: item.json.thread_ts || null,\n  reactions: item.json.reactions || [],\n  files: item.json.files || []\n})).filter(msg => msg.subtype !== 'channel_join'); // system 메시지 제거\n\n// 이미 수집한 메시지 제외 (previousLastTimestampTs보다 큰 것만)\nif (previousLastTimestampTs && previousLastTimestampTs !== '') {\n  messages = messages.filter(msg => parseFloat(msg.ts) > parseFloat(previousLastTimestampTs));\n}\n\n// 마지막 메시지의 timestamp 찾기 (가장 큰 timestamp) - Slack ts 형식 유지\nconst lastTimestampTs = messages.length > 0 \n  ? Math.max(...messages.map(msg => parseFloat(msg.ts))).toString()\n  : previousLastTimestampTs || '';\n\n// 채널 정보와 메시지를 하나의 객체로 결합\nreturn [{\n  json: {\n    channelId: channel.channelId,\n    channelName: channel.name,\n    isPrivate: channel.isPrivate,\n    created: channel.created,\n    numMembers: channel.numMembers,\n    messages: messages,\n    lastTimestamp: lastTimestampTs\n  }\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -142,6 +143,72 @@
       ],
       "id": "4dc4057d-a7fd-4510-85cb-a72da27beff5",
       "name": "get channel list"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://192.168.219.108:8080/api/slack/timestamps/{{ $json.channelId }}",
+        "options": {}
+      },
+      "id": "read-last-timestamp-001",
+      "name": "Read Last Timestamp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// HTTP 응답에서 timestamp 추출\nconst httpResponse = $input.first().json;\nconst channel = $('Loop Over Channels1').item.json;\n\n// API 응답에서 timestamp 가져오기\n// ApiResponse의 fileName 필드에 timestamp가 저장됨 (Slack ts 형식)\nlet slackTs = httpResponse.fileName;\nlet lastTimestampISO = null;\nlet lastTimestampTs = null;\n\n// Slack ts를 ISO 문자열로 변환\nif (slackTs && slackTs !== 'null' && slackTs !== '') {\n  lastTimestampTs = slackTs;\n  // Slack ts (Unix timestamp with microseconds) -> ISO 문자열\n  // +1ms를 더해서 마지막 시점 이후의 메시지만 가져오도록 함\n  const date = new Date(parseFloat(slackTs) * 1000 + 1);\n  lastTimestampISO = date.toISOString();\n}\n\n// 채널 정보 생성\nreturn [{\n  json: {\n    channelId: channel.channelId,\n    name: channel.name,\n    isPrivate: channel.isPrivate,\n    created: channel.created,\n    numMembers: channel.numMembers,\n    lastTimestamp: lastTimestampISO,\n    lastTimestampTs: lastTimestampTs\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1200
+      ],
+      "id": "parse-timestamp-response-001",
+      "name": "Parse Timestamp Response"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://192.168.219.108:8080/api/slack/timestamps/{{ $json.channelId }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"timestamp\": $json.lastTimestamp || '' } }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "save-last-timestamp-001",
+      "name": "Save Last Timestamp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        1152,
+        1128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 원본 데이터 그대로 전달 (timestamp 유무와 관계없이)\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        1128
+      ],
+      "id": "check-timestamp-before-save-001",
+      "name": "Check Timestamp Before Save"
     }
   ],
   "pinData": {},
@@ -155,6 +222,28 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Read Last Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Last Timestamp": {
+      "main": [
+        [
+          {
+            "node": "Parse Timestamp Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Timestamp Response": {
+      "main": [
         [
           {
             "node": "Get Channel History1",
@@ -179,7 +268,23 @@
       "main": [
         [
           {
+            "node": "Check Timestamp Before Save",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Loop Over Channels1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Timestamp Before Save": {
+      "main": [
+        [
+          {
+            "node": "Save Last Timestamp",
             "type": "main",
             "index": 0
           }

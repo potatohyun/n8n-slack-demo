@@ -32,5 +32,34 @@ public class SlackDataController {
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("OK");
     }
+
+    @GetMapping("/timestamps/{channelId}")
+    public ResponseEntity<ApiResponse> getLastTimestamp(@PathVariable String channelId) {
+        try {
+            String timestamp = slackDataService.getLastTimestamp(channelId);
+            return ResponseEntity.ok(new ApiResponse(true, "Timestamp retrieved successfully", timestamp));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error retrieving timestamp: " + e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/timestamps/{channelId}")
+    public ResponseEntity<ApiResponse> saveLastTimestamp(
+            @PathVariable String channelId,
+            @RequestBody java.util.Map<String, String> request) {
+        try {
+            String timestamp = request.get("timestamp");
+            // 빈 timestamp는 무시하고 성공 응답 반환
+            if (timestamp == null || timestamp.isEmpty()) {
+                return ResponseEntity.ok(new ApiResponse(true, "No timestamp to save (skipped)", null));
+            }
+            slackDataService.saveLastTimestamp(channelId, timestamp);
+            return ResponseEntity.ok(new ApiResponse(true, "Timestamp saved successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Error saving timestamp: " + e.getMessage(), null));
+        }
+    }
 }
 
